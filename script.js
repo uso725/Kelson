@@ -1,218 +1,441 @@
-
-// --------------------------------------------------
-// SCENES
-// Read through the comments below to see what this section does
-//
-// TO CUSTOMIZE THIS SECTION
-// 1) add fields for each scene, as relevant, to match your mockup
-// 2) customize the scenes to fit your story
-// 3) add any new fields to the function below
-// --------------------------------------------------
-
-// First, we create a variable for the current scene being displayed
-let currentScene = "backyard";
-
-// Then, we create an object that stores the data for each scene,
-const scenes = {
-  // See "backyard" for the first example
-  backyard: {
-    title: "Location: Backyard",
-    character: "Interviewee:Grandma",
-    text: "Text: well what I remember happening is that Darcie went inside to play with her pretend kitchen, I heard her neighbor mention he was really hungry, and the dog ran around really quickly",
-    // you can choose how many choices to include
-    // each choice can have text, an action, and/or nextScene
-    choices: [
-      {
-        text: "Chase after the dog (-10 HP)",
-        action: function () {
-          updateHealth(-10);
-        },
-        nextScene: "entrance"
-      },
-      {
-        text: "Ask about the neighbor",
-        nextScene: "hallway"
-      },
-      {
-          text: "Pick up the brass key",
-          action: function () {
-            pickUpItem("brass key");
-          },
-          nextScene: "hallway"
-      }
-    ]
-  },
-
-  entrance: {
-    title: "Location: Entrance",
-    character: "Interviewee:Neighbor",
-    text: "well what I remember...",
-    choices: [
-      {
-        text: "Ask about the dog",
-        nextScene: "backyard"
-      },
-         {
-        text: "Ask about the neighbor",
-        nextScene: "hallway"
-      }
-    ]
-  },
-
-  hallway: {
-    title: "The Hallway",
-    text: "The hallway is dark and silent.",
-    choices: [
-      {
-        text: "backyard",
-        nextScene: "lockedDoor"
-      }
-    ]
-  },
-
-   lockedDoor: {
-    title: "The Locked Door",
-    text: "The door handle doesn't move.",
-    choices: [
-      {
-        text: "Try to open it",
-        action: unlockDoor
-      },
-      {
-        text: "Go back",
-        nextScene: "backyard"
-      }
-    ]
-  },
-
-   solution: {
-    title: "The solution",
-    text: "You solved the mystery!",
-    
-  }
-};
-
-// --------------------------------------------------
-// UPDATE SCENES
-// Read through the comments below to see what this section does
-//
-// TO CUSTOMIZE THIS SECTION
-// 1) add a new const variable for each new field you added above
-// Make sure to match the ids used in your mock up with the fields 
-// 2) set the .textContent of each variable to the corresponding field in the scene object
-// Use sceneTitle as a model
-// --------------------------------------------------
-
-// First, we create variables to hold the references to the HTML elements
-// Technically you could just use document.getElementById('id-name') 
-// in the function itself, but that would be very wordy 
-// and make the code harder to read
 const sceneTitle = document.getElementById("scene-title");
 const sceneText = document.getElementById("scene-text");
 const choicesContainer = document.getElementById("choices-container");
 const characterName = document.getElementById("character-name");
+const batteryDisplay = document.getElementById("health-display");
+const inventoryDisplay = document.getElementById("inventory-display");
+const messageDisplay = document.getElementById("message-display");
 
-// Then, we create a function to update the scene,
-function updateScene(sceneName) {
+const maxBattery = 6;
+const state = {
+  battery: maxBattery,
+  inventory: [],
+  location: null,
+  firstStationVisit: true,
+  campsiteVisits: 0,
+  visitedCampsite: false,
+  visitedShowerHouse: false,
+  searchedShowerHouse: false,
+  collectedSample: false,
+  reportedSample: false,
+  reportedShed: false,
+  visitedShed: false,
+  unlockedShed: false,
+  foundBear: false,
+  toldCamperAboutBear: false,
+  toldCamperAboutSample: false,
+  lastCampSearch: "",
+  freeNextShowerEntry: false,
+  gameOver: false,
+  message: ""
+};
 
-  //This update the variable currentScene with the new scene passed as a parameter
-  currentScene = sceneName;
+const sceneLocations = {
+  station: "Ranger Station",
+  radio: "Ranger Station",
+  map: "Ranger Station",
+  campsite: "Campsite",
+  campTalk: "Campsite",
+  campSearch: "Campsite",
+  shower: "Shower house",
+  showerSearch: "Shower house",
+  forest: "Forest",
+  shed: "Shed"
+};
 
-  //This accesses the scene object based on the scene name
-  const scene = scenes[sceneName];
+function updateStatus() {
+  batteryDisplay.textContent = String(state.battery);
+  inventoryDisplay.textContent = state.inventory.join(", ");
+}
 
-  // Here, for each html element, you change the textContent to match
-  // the appropriate text from the scene object
+function setMessage(message) {
+  state.message = message;
+}
+
+function endGame(title, text) {
+  state.gameOver = true;
+  sceneTitle.textContent = title;
+  characterName.textContent = "";
+  sceneText.textContent = text;
+  choicesContainer.innerHTML = "";
+  messageDisplay.textContent = state.message;
+  state.message = "";
+}
+
+function drainBattery(amount) {
+  if (!state.inventory.includes("flashlight")) {
+    return true;
+  }
+
+  state.battery = Math.max(0, state.battery - amount);
+  updateStatus();
+
+  if (state.battery === 0) {
+    endGame(
+      "The flashlight goes dark",
+      "Your battery runs out in the dark. A bear approaches before you can find your way to safety. Game over."
+    );
+    return false;
+  }
+
+  return true;
+}
+
+function makeChoice(text, nextScene, action) {
+  return { text, nextScene, action };
+}
+
+function getScene(sceneName) {
+  switch (sceneName) {
+    case "station":
+      return {
+        title: "Location: Ranger Station",
+        character: "Radio",
+        text: state.firstStationVisit
+          ? "You awake? You better hurry up and see what's happening. Also, it's dark out today; make sure your battery doesn't run out or you won't be able to see."
+          : "You hear frightened people chatting outside.",
+        choices: [
+          makeChoice("Look at the map", "map"),
+          ...(!state.inventory.includes("flashlight")
+            ? [
+                makeChoice("Take the flashlight", "station", function () {
+                  state.inventory.push("flashlight");
+                  setMessage("You take the flashlight.");
+                })
+              ]
+            : []),
+          makeChoice("Use the charging station", "station", function () {
+            state.battery = maxBattery;
+            updateStatus();
+            setMessage("Your flashlight battery is fully charged.");
+          }),
+          makeChoice("Use the radio", "radio"),
+          makeChoice("Go to the campsite", "campsite")
+        ]
+      };
+
+    case "map":
+      return {
+        title: "Map",
+        character: "",
+        text: "The map shows five locations: Ranger Station, Campsite, Shower house, Forest, and Shed.",
+        choices: [
+          makeChoice("Return to the Ranger Station", "station"),
+          makeChoice("Go to the campsite", "campsite")
+        ]
+      };
+
+    case "radio":
+      return {
+        title: "Ranger Station Radio",
+        character: "Radio",
+        text: "So, did you find anything?",
+        choices: [
+          ...(state.collectedSample
+            ? [
+                makeChoice("I found red liquid", "station", function () {
+                  state.reportedSample = true;
+                  setMessage("You report the red liquid sample over the radio.");
+                })
+              ]
+            : []),
+          makeChoice("No", "station", function () {
+            setMessage("You tell the radio you haven't found anything yet.");
+          }),
+          ...(state.visitedShed
+            ? [
+                makeChoice("I heard something in the shed", "station", function () {
+                  state.reportedShed = true;
+                  setMessage("You report the sounds you heard in the shed.");
+                })
+              ]
+            : []),
+          makeChoice("Back to the Ranger Station", "station")
+        ]
+      };
+
+    case "campsite":
+      return {
+        title: "Location: Campsite",
+        character: "NPC1",
+        text: state.campsiteVisits === 1
+          ? "There you are! There have been some strange noises in the shower house. You might want to check it out."
+          : "The campsite is quiet. NPC1 looks over as you approach.",
+        choices: [
+          makeChoice("Talk to NPC1", "campTalk"),
+          ...(state.inventory.includes("paper towels") &&
+          (!state.visitedShed || state.inventory.includes("shed key"))
+            ? []
+            : [
+                makeChoice("Search the campsite", "campSearch", function () {
+                  if (!drainBattery(1)) {
+                    return;
+                  }
+
+                  const found = [];
+                  if (!state.inventory.includes("paper towels")) {
+                    state.inventory.push("paper towels");
+                    found.push("You find paper towels.");
+                  } else {
+                    found.push("You already have paper towels.");
+                  }
+                  if (
+                    state.visitedShed &&
+                    !state.inventory.includes("shed key")
+                  ) {
+                    state.inventory.push("shed key");
+                    found.push("You find a key that may unlock the shed.");
+                  } else if (state.inventory.includes("shed key")) {
+                    found.push("You already found the shed key.");
+                  }
+                  state.lastCampSearch = found.join(" ");
+                  updateStatus();
+                })
+              ]),
+          makeChoice("Go to the shower house", "shower"),
+          makeChoice("Return to the Ranger Station", "station")
+        ]
+      };
+
+    case "campSearch": {
+      return {
+        title: "Searching the Campsite",
+        character: "",
+        text: state.lastCampSearch,
+        choices: [
+          makeChoice("Back to the campsite", "campsite"),
+          makeChoice("Go to the shower house", "shower"),
+          makeChoice("Return to the Ranger Station", "station")
+        ]
+      };
+    }
+
+    case "campTalk":
+      if (
+        state.reportedSample &&
+        (state.toldCamperAboutBear || state.toldCamperAboutSample)
+      ) {
+        return {
+          title: "The Mystery Solved",
+          character: "NPC1",
+          text: "Oh, thankfully it wasn't something way more serious! You also tell NPC1 that you collected and reported the red liquid sample. The camper knows what happened, and the investigation is complete.",
+          choices: [makeChoice("Finish", "ending")]
+        };
+      }
+      return {
+        title: "At the Campsite",
+        character: "NPC1",
+        text: state.toldCamperAboutBear
+          ? "Oh, thankfully it wasn't something way more serious!"
+          : "So... what's up?",
+        choices: [
+          ...(state.collectedSample
+            ? [
+                makeChoice(
+                  "Found red liquid on the walls",
+                  "campTalk",
+                  function () {
+                    state.toldCamperAboutSample = true;
+                    setMessage(
+                      state.reportedSample
+                        ? "You tell NPC1 that you collected the red liquid and reported it at the Ranger Station."
+                        : "You tell NPC1 about the red liquid. You still need to report your sample over the radio."
+                    );
+                  }
+                )
+              ]
+            : []),
+          ...(state.foundBear && !state.toldCamperAboutBear
+            ? [
+                makeChoice("It was a bear", "campTalk", function () {
+                  state.toldCamperAboutBear = true;
+                })
+              ]
+            : []),
+          makeChoice("Leave", "campsite")
+        ]
+      };
+
+    case "shower":
+      return {
+        title: "Location: Shower house",
+        character: "",
+        text: "The shower house is dim and quiet.",
+        choices: [
+          ...(state.inventory.includes("flashlight")
+            ? [
+                makeChoice("Search the shower house", "showerSearch", function () {
+                  state.searchedShowerHouse = true;
+                  drainBattery(1);
+                })
+              ]
+            : [
+                makeChoice(
+                  "It's too dark to search without a flashlight. Return to the Ranger Station.",
+                  "station"
+                )
+              ]),
+          makeChoice("Go back to the campsite", "campsite"),
+          makeChoice("Go to the shed", "shed"),
+          makeChoice("Go to the forest", "forest"),
+          makeChoice("Return to the Ranger Station", "station")
+        ]
+      };
+
+    case "showerSearch":
+      return {
+        title: "Searching the Shower House",
+        character: "",
+        text: state.collectedSample
+          ? "You move slowly on the wet floors. Red liquid stains the walls and floor; you've already collected a sample."
+          : state.inventory.includes("paper towels")
+            ? "You move slowly on the wet floors and spot red liquid on the walls and floor. You use the paper towels to collect a sample."
+            : "You move slowly on the wet floors and spot red liquid on the walls and floor. You can't take a sample yet; you need paper towels.",
+        choices: [
+          ...(!state.collectedSample && state.inventory.includes("paper towels")
+            ? [
+                makeChoice("Collect a sample with the paper towels", "showerSearch", function () {
+                  state.collectedSample = true;
+                  state.inventory.push("red liquid sample");
+                  updateStatus();
+                  setMessage("You collect a sample of the red liquid.");
+                })
+              ]
+            : []),
+          makeChoice("Back to the shower house", "shower"),
+          makeChoice("Go back to the campsite", "campsite"),
+          makeChoice("Return to the Ranger Station", "station")
+        ]
+      };
+
+    case "shed":
+      state.visitedShed = true;
+      if (state.inventory.includes("shed key")) {
+        state.unlockedShed = true;
+        state.foundBear = true;
+        return {
+          title: "Inside the Shed",
+          character: "",
+          text: "You unlock the shed. A bear is eating food inside, and its paws and muzzle are covered in red sauce.",
+          choices: [
+            makeChoice("Go back to the shower house", "shower"),
+            makeChoice("Go to the campsite", "campsite")
+          ]
+        };
+      }
+      return {
+        title: "The Shed",
+        character: "",
+        text: "It's locked; I must find the key. You hear a lot of motion inside...",
+        choices: [
+          makeChoice("Try the shed door", "shed", function () {
+            setMessage("The shed is still locked. You need to find the key.");
+          }),
+          makeChoice("Go back to the shower house", "shower"),
+          makeChoice("Go to the campsite", "campsite")
+        ]
+      };
+
+    case "forest":
+      return {
+        title: "The Forest",
+        character: "",
+        text: "You hear rustling noises and smell food. I should go back...",
+        choices: [
+          makeChoice("Go back to the shower house", "shower", function () {
+            if (drainBattery(1)) {
+              state.freeNextShowerEntry = true;
+            }
+          }),
+          makeChoice("Explore", "forestAttack")
+        ]
+      };
+
+    case "forestAttack":
+      return {
+        title: "The Forest",
+        character: "",
+        text: "You explore farther into the forest. A family of bears attacks you. Game over.",
+        choices: []
+      };
+
+    case "ending":
+      return {
+        title: "Investigation Complete",
+        character: "",
+        text: "You made it back to the campsite and shared what you discovered. Thanks for playing!",
+        choices: []
+      };
+
+    default:
+      throw new Error(`Unknown scene: ${sceneName}`);
+  }
+}
+
+function enterScene(sceneName) {
+  if (state.gameOver) {
+    return;
+  }
+
+  const nextLocation = sceneLocations[sceneName];
+  if (nextLocation && nextLocation !== state.location) {
+    if (nextLocation === "Campsite") {
+      if (!drainBattery(1)) {
+        return;
+      }
+      state.campsiteVisits += 1;
+      state.visitedCampsite = true;
+    } else if (nextLocation === "Shower house") {
+      if (state.freeNextShowerEntry) {
+        state.freeNextShowerEntry = false;
+      } else if (!drainBattery(1)) {
+        return;
+      }
+      state.visitedShowerHouse = true;
+    } else if (nextLocation === "Ranger Station") {
+      if (state.location !== null) {
+        state.firstStationVisit = false;
+      }
+    }
+    state.location = nextLocation;
+  }
+
+  const scene = getScene(sceneName);
   sceneTitle.textContent = scene.title;
   sceneText.textContent = scene.text;
-  characterName.textContent = scene.character;
-
-  // Clear the old buttons before creating new ones
+  characterName.textContent = scene.character || "";
+  messageDisplay.textContent = state.message;
+  state.message = "";
   choicesContainer.innerHTML = "";
+  updateStatus();
 
-  // Loop through each choice in the scene, connecting an action and nextScene if included
   scene.choices.forEach(function (choice) {
     const button = document.createElement("button");
-
     button.textContent = choice.text;
-
     button.addEventListener("click", function () {
       if (choice.action) {
         choice.action();
       }
-
-      if (choice.nextScene) {
-        updateScene(choice.nextScene);
+      if (state.gameOver) {
+        return;
       }
+      if (choice.nextScene === "forestAttack") {
+        endGame(
+          "The Forest",
+          "You explore farther into the forest. A family of bears attacks you. Game over."
+        );
+        return;
+      }
+      enterScene(choice.nextScene);
     });
-
     choicesContainer.appendChild(button);
   });
 }
 
-// This updates the screen with the current scene
-updateScene(currentScene);
-
-
-// --------------------------------------------------
-// HEALTH
-// Read through the comments below to see what this section does
-//
-// TO CUSTOMIZE THIS SECTION
-// Either customize the name from health to steps, stress, etc...
-// OR
-// create a copy of each step for each additional state you want to track throughout the game
-// --------------------------------------------------
-
-// Create a variable for health
-let health = 100;
-
-// Display current health
-const healthDisplay = document.getElementById("health-display");
-
-// Create a function to update health 
-function updateHealth(amount) {
-  health += amount;
-  healthDisplay.textContent = health;
+const batteryLabel = batteryDisplay.parentElement.previousElementSibling;
+if (batteryLabel) {
+  batteryLabel.textContent = "Battery Level:";
 }
 
-// This refreshes the health display
-updateHealth(0);
-
-// --------------------------------------------------
-// INVENTORY
-// Read through the comments below to see what this section does
-//
-// For now, you are probably leaving this section as is. 
-// --------------------------------------------------
-
-// Create a variable for inventory
-let inventory = [];
-
-// Display current inventory
-const inventoryDisplay = document.querySelector("#inventory-display");
-const messageDisplay = document.getElementById("message-display");
-
-// Create a function to update inventory 
-function pickUpItem(itemName) {
-    // Add itemName to the inventory array
-    // Show the updated inventory on the page
-  inventory.push(itemName);
-  inventoryDisplay.textContent = inventory.join(", ");
-}
-
-// --------------------------------------------------
-// CONDITIONAL 
-// Depending on how you want to implement the conditional logic, you may 
-// simply adjust the names below or you may need to expand upon this section
-// --------------------------------------------------
-
-// Create a function that checks if the inventory contains one item and if so shows the win condition scene.
-function unlockDoor() {
-  if (inventory.includes("brass key")) {
-    updateScene("solution");
-  } else {
-    messageDisplay.textContent = "The door is locked.";
-  }
-}
-
+updateStatus();
+enterScene("station");
