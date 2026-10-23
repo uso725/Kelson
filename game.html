@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Campground Mystery</title>
+    <link rel="stylesheet" href="style.css">
     <script src="script.js" defer></script>
 
 </head>
@@ -24,7 +25,7 @@
 
     <main>
     <header>
-        <h1 id="scene-title">  </h1>
+        <h1 id="scene-title" class="heading">  </h1>
         <h2 id="character-name">  </h2>
     </header>
     
@@ -34,10 +35,11 @@
     </section>
 
     <section>
-        <div id="choices-container"> </div>
+        <div id="choices-container" class="card"> </div>
     </section>   
         
     <section>
+        <div class="card">
         <p> Current HP:</p>
         <ul>
             <li id="health-display"> 100</li>
@@ -49,6 +51,7 @@
         </ul>
 
         <p id="message-display"></p>
+        </div>
     </section>
 
 
