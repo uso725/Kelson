@@ -45,7 +45,21 @@ const sceneLocations = {
 
 function updateStatus() {
   batteryDisplay.textContent = String(state.battery);
-  inventoryDisplay.textContent = state.inventory.join(", ");
+  inventoryDisplay.replaceChildren();
+
+  if (state.inventory.length === 0) {
+    const emptyItem = document.createElement("li");
+    emptyItem.className = "inventory-empty";
+    emptyItem.textContent = "Empty";
+    inventoryDisplay.appendChild(emptyItem);
+    return;
+  }
+
+  state.inventory.forEach(function (item) {
+    const inventoryItem = document.createElement("li");
+    inventoryItem.textContent = item;
+    inventoryDisplay.appendChild(inventoryItem);
+  });
 }
 
 function setMessage(message) {
