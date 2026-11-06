@@ -36,13 +36,6 @@ button {
     cursor: pointer;
 }
 
-.button:hover,
-.button:focus-visible,
-button:hover,
-button:focus-visible {
-    color: #173d5c;
-}
-
 main {
     max-width: 800px;
     margin: 32px auto;
