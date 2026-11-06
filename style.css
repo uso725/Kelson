@@ -79,6 +79,17 @@ main {
     list-style: none;
 }
 
+#health-display {
+    display: inline-block;
+    padding: 8px 12px;
+    border: 1px solid #7291b0;
+    background-color: #e7eff8;
+    color: #173d5c;
+    font-size: 20px;
+    font-weight: 700;
+    text-align: center;
+}
+
 #inventory-display li {
     min-width: 128px;
     padding: 12px 16px;
