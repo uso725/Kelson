@@ -17,7 +17,7 @@ nav {
     flex-wrap: wrap;
 }
 
-nav ul {
+.nav-list {
     margin: 0;
     padding: 0;
     list-style: none;
